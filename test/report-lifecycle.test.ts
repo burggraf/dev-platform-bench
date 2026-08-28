@@ -1,0 +1,4 @@
+import test from 'node:test'; import assert from 'node:assert/strict'; import {redact} from '../src/report.js'; import {run} from '../src/runner.js'; import {fakeAdapter} from '../src/adapters/fake.js'; import {NotSupportedError} from '../src/types.js';
+test('report redacts connection metadata and preserves endpoint host',()=>{const r=redact({endpoint:'https://user:secret@example.test/x',apiKey:'abc',provider:'x'}) as any; assert.equal(r.endpoint,'example.test'); assert.equal(r.apiKey,undefined); assert.equal(r.provider,'x');});
+test('cleanup runs when setup fails',async()=>{let cleaned=false; const a=fakeAdapter(); a.setup=async()=>{throw Error('setup')}; a.cleanup=async()=>{cleaned=true}; await assert.rejects(run(a)); assert.equal(cleaned,true);});
+test('unsupported operation is explicit',async()=>{const a=fakeAdapter(); const unsupported=async()=>{throw new NotSupportedError('batch')}; a.batch=unsupported; await assert.rejects(a.batch([]),/not-supported/);});

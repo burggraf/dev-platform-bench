@@ -1,0 +1,5 @@
+import test from 'node:test'; import assert from 'node:assert/strict';
+import {records} from '../src/records.js'; import {runStage} from '../src/stage.js'; import {fakeAdapter} from '../src/adapters/fake.js'; import {getAdapter} from '../src/providers.js';
+test('write workload has fresh IDs and batch records',()=>{const rs=records('r',100,8); const writes=records('r-write',100,8); assert.equal(new Set(writes.map(x=>x.id)).size,100); assert.equal(rs.length,100);});
+test('provider selection exposes documented modes',()=>{for(const p of ['appwrite','convex','neon-api','pocketbase','supabase-api','trailbase','neon-direct','neon-pooler','supabase-direct','supabase-pooler']) assert.equal(typeof getAdapter(p),'object');});
+test('stage reports records per batch and uses actual elapsed time',async()=>{const a=fakeAdapter(); await a.setup(); const out=await runStage(a,'batch-write',records('r',100,1),{durationSeconds:.01,concurrency:2,batchSize:10}); assert.equal(out.batchSize,10); assert.equal(out.records,out.success*10); assert.ok(out.elapsedSeconds>0);});

@@ -1,5 +1,17 @@
 # Methodology
 
-The suite uses deterministic records (1 KiB payload by default), generated IDs, a run ID, sequence, timestamp, and indexed point reads. The lifecycle is setup, seed, smoke, warmup (when a provider runner is used), measured stages, cooldown, and run-scoped cleanup. API and PostgreSQL direct modes are reported separately.
+## Workload and lifecycle
 
-Percentiles use nearest-rank over successful request latency samples. Throughput is successful requests and logical records divided by declared stage seconds. A stage is unstable on any failed request in the minimal runner; provider runners should additionally classify timeout and throttle responses. Batch operations must report both request and record rates. Results are observations, not service limits.
+Every run creates a unique run ID and deterministic 1 KiB logical records: `id`, `runId`, `sequence`, `createdAt`, and `payload`. The default seed is 100 records; measured batch requests contain 100 records. Setup, seed, smoke (point read, single insert, batch insert), optional read warmup, measured ramps, cooldown, and run-scoped cleanup are performed in that order. Cleanup is attempted even when setup or measurement fails.
+
+Writes receive a fresh UUID per measured request. Reads choose seeded IDs. API and direct/pooler transports are separate results. SQLite file access is not included.
+
+## Stages and metrics
+
+`--ramps 1,2` runs bounded concurrency stages; each stage runs for `--duration` seconds, with optional `--requests-per-second` pacing, `--timeout-ms`, and cooldown. A request timeout, provider throttle, or configured error threshold stops escalation; throttles are not aggressively retried. Percentiles use nearest-rank over successful request latency. Rates use actual elapsed wall-clock time. Batch results report both request/s and logical record/s.
+
+## Interpretation
+
+A maximum is the highest stable configured stage, not a provider limit or SLA. Record provider region/tier, runner location, Node version, schema/indexes, dataset, payload, batch semantics, stage settings, and date. Note consistency, caching, cold starts, pooling, transaction behavior, and server specifications.
+
+Official starting references and access date (2026-08-28): [Appwrite databases](https://appwrite.io/docs/products/databases), [Convex limits](https://docs.convex.dev/production/state/limits), [Neon Data API](https://neon.tech/docs/data-api/get-started), [PocketBase Records API](https://pocketbase.io/docs/api-records/), [Supabase insert](https://supabase.com/docs/reference/javascript/insert), and [TrailBase API](https://trailbase.io/documentation/api/). Explicit provider ceilings must be checked against current documentation before a live run; repository profiles are conservative assumptions, not claimed free-tier limits.

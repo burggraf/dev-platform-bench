@@ -1,2 +1,2 @@
-import {httpAdapter} from './http.js';
-export function trailbaseAdapter(base=process.env.TRAILBASE_URL??'') { const c=process.env.TRAILBASE_COLLECTION??'bench_records'; return httpAdapter('trailbase',base,{}, {read:id=>`/api/records/${c}/${id}`,insert:`/api/records/${c}`,batch:`/api/records/${c}`,cleanup:`/api/records/${c}`}); }
+import {httpAdapter} from './http.js'; import type {LogicalRecord} from '../types.js';
+export function trailbaseAdapter(base=process.env.TRAILBASE_URL??''){const c=process.env.TRAILBASE_COLLECTION??'bench_records', path=`/api/records/${encodeURIComponent(c)}`; return httpAdapter('trailbase',base,{}, {read:id=>`${path}/${encodeURIComponent(id)}`,insert:path,encode:(r:LogicalRecord)=>r,cleanup:()=>path,cleanupRequest:async(run,request)=>{const result=await request(`${path}?runId=${encodeURIComponent(run)}`);for(const item of(result?.records??result?.data??[]))await request(`${path}/${encodeURIComponent(item.id??item._id)}`,'DELETE');}});}
