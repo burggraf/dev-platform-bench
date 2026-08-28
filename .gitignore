@@ -1,0 +1,20 @@
+# Local credentials and provider exports
+.env
+.env.*
+!.env.example
+*/*.credentials.txt
+*/*.connection.string.txt
+*/*.data.api.txt
+*/*.prompt.txt
+*/*.summary.txt
+
+# Node/build output
+node_modules/
+dist/
+coverage/
+results/
+
+# Local worktrees and editor/OS files
+.worktrees/
+.DS_Store
+*.log
