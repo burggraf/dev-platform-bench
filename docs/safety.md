@@ -1,30 +1,9 @@
 # Safety and recovery
 
-## Pre-run checklist
+Free-plan reference quotas (accessed 2026-08-28) are resource/monthly quotas, not RPS ceilings: Appwrite documents 500,000 reads and 250,000 writes monthly ([limits](https://appwrite.io/docs/advanced/platform/limits)); Convex documents 0.5 GB database, 1 GB database I/O, and 1 million function calls monthly ([pricing](https://www.convex.dev/pricing)); Neon documents 0.5 GB storage, 100 CU-hours, and 5 GB transfer ([pricing](https://neon.tech/pricing)); Supabase documents a 500 MB database and read-only threshold plus bandwidth quotas ([billing](https://supabase.com/docs/guides/platform/billing-onboarding)); PocketBase and TrailBase are self-hosted, so VPS/database limits apply rather than a provider free tier.
 
-- Use a unique benchmark-owned table/collection and confirm its schema/index on the selected provider.
-- Review current plan, quotas, terms, region, and runner/VPS limits.
-- Set only the variables for one provider. Never paste credentials into commands, results, issues, or chat.
-- Start with the fake adapter and `--dry-run`; smoke one provider at a time.
-- Keep defaults: 100 seed records, 100-record batches, 1-second stages, low concurrency, finite profile budgets.
-- Do not use `--confirm-stress` unless the numeric override is intentional and approved.
+The committed profiles use 5–10 RPS, one-second stages, and concurrency 1–2 as a conservative smoke/ramp default, never as provider capacity claims. Review current Terms of Service and quota pages before every run.
 
-## Controls
+## Checklist and recovery
 
-Profiles cap duration, ramps, request rate, records, run time, and cooldown. `preflight` rejects requests beyond those assumptions unless `--confirm-stress` is supplied. Per-request timeouts prevent a hung network operation from holding a stage indefinitely. Error, timeout, and throttle counters stop escalation; throttling is never retried aggressively.
-
-## Commands
-
-```sh
-npm ci
-npm test
-npm run bench -- --provider fake --dry-run
-npm run bench -- --provider fake --count 100
-npm run bench -- --provider supabase-api --count 100 --duration 1 --ramps 1
-```
-
-The final command is a one-stage smoke/measurement invocation and requires configured credentials. For live validation, prefer a dedicated smoke-only configuration and stop after cleanup. If cleanup fails, rerun the provider's documented run-ID delete/filter command, verify zero records with that run ID, and do not broaden the delete predicate. Preserve only sanitized report metadata.
-
-## Post-run checklist
-
-Verify benchmark-owned run data is absent, no non-benchmark records changed, results contain endpoint hosts only, and no credentials occur in tracked or published files. Never run live load from unit tests or CI.
+Set one provider's environment variables, run `npm test`, then `npm run bench -- --provider MODE --dry-run`, and smoke with `--smoke-only`. Never commit tokens or connection strings. `--confirm-stress` is required for explicit overrides. Cleanup accepts only generated UUID run IDs, deletes only benchmark-owned records, and reports a retry command. After a failed cleanup, rerun that command and verify zero matching rows without widening the predicate.

@@ -53,7 +53,7 @@
 - Create: `test/stage.test.ts`
 
 **Steps:**
-1. Write failing tests proving over-budget configurations are rejected without `confirmStress`, explicit overrides require confirmation, concurrency is bounded, unstable stages stop escalation, and throttling is not aggressively retried.
+1. Write failing tests proving over-budget configurations are rejected without `--confirm-stress`, explicit overrides require confirmation, concurrency is bounded, unstable stages stop escalation, and throttling is not aggressively retried.
 2. Run focused tests and confirm expected failures.
 3. Implement immutable conservative profiles, preflight budget calculation, worker-based stage execution, optional request pacing, latency collection, and threshold decisions.
 4. Run focused and full tests.
