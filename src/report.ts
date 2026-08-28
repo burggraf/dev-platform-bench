@@ -22,12 +22,17 @@ export function redact(value: unknown): unknown {
 export async function writeReport(result: unknown, dir = 'results') {
   await mkdir(dir, { recursive: true });
   const clean = redact(result) as any;
-  await writeFile(`${dir}/result.json`, JSON.stringify(clean, null, 2));
+  const archiveTag = typeof clean.runId === 'string' ? clean.runId.replace(/[^A-Za-z0-9_-]/g, '_') : String(Date.now());
+  const json = JSON.stringify(clean, null, 2);
+  await Promise.all([
+    writeFile(`${dir}/result.json`, json),
+    writeFile(`${dir}/result-${archiveTag}.json`, json),
+  ]);
   const rows = (clean.results ?? []).map((item: any) =>
     `| ${item.operation ?? ''} | ${item.targetConcurrency ?? ''} | ${item.recordsPerSecond ?? 0} | ${item.requestsPerSecond ?? 0} | ${item.p95 ?? 0} | ${item.stopReason ?? ''} |`,
   ).join('\n');
   const environment = clean.environment ?? {};
-  await writeFile(`${dir}/summary.md`, `# Benchmark result
+  const summary = `# Benchmark result
 
 Provider: ${clean.provider ?? 'unknown'} (${clean.transport ?? 'unknown'})
 Endpoint: ${clean.endpoint ?? 'unknown'}
@@ -41,5 +46,9 @@ Cleanup: ${clean.cleanup?.status ?? 'unknown'}
 | Operation | Concurrency | Records/s | Requests/s | P95 ms | Stop |
 |---|---:|---:|---:|---:|---|
 ${rows}
-`);
+`;
+  await Promise.all([
+    writeFile(`${dir}/summary.md`, summary),
+    writeFile(`${dir}/summary-${archiveTag}.md`, summary),
+  ]);
 }

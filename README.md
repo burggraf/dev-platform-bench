@@ -25,6 +25,6 @@ npm run bench -- --help
 npm run bench -- --provider fake --count 10
 ```
 
-The default fake run is safe and writes ignored files under `results/`. Copy `.env.example` to the ignored `.env`; `npm run bench` loads it with Node's native env-file support. See `SECURITY.md` and [safety](docs/safety.md). Real provider smoke commands must be run one provider at a time after setup; never use live accounts for normal tests or unbounded load. See [methodology](docs/methodology.md), [results](docs/results.md), and provider setup notes.
+The default fake run is safe and writes ignored files under `results/`. Copy `.env.example` to the ignored `.env`; `npm run bench` loads it with Node's native env-file support. See `SECURITY.md` and [safety](docs/safety.md). Real provider smoke commands must be run one provider at a time after setup; never use live accounts for normal tests or unbounded load. Each run preserves an immutable `result-<runId>.json` and `summary-<runId>.md` archive alongside the latest-result aliases. See [methodology](docs/methodology.md), [results](docs/results.md), and provider setup notes.
 
 See [the approved design](docs/plans/2026-08-28-read-write-throughput-design.md).
