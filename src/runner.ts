@@ -113,7 +113,7 @@ export async function run(adapter: Adapter, opts: RunOptions = {}) {
     reserve(1, c.batchSize);
     try {
       await bounded(
-        signal => adapter.batch(records(runId, c.count + 2, c.payloadBytes).slice(0, c.batchSize), signal),
+        signal => adapter.batch(Array.from({ length: c.batchSize }, (_, i) => record(runId, c.count + 2 + i, c.payloadBytes)), signal),
         c.signal,
         c.timeoutMs,
       );
