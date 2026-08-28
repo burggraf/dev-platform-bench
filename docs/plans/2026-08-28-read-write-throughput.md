@@ -11,7 +11,8 @@
 ## Execution status — 2026-08-28
 
 - [x] Tasks 1–8 implemented and pushed to `main`.
-- [x] Task 9 completed: 53 tests pass, typecheck/build pass, credential audit clean, independent review has no Critical findings, and `main` is synchronized with `origin/main`.
+- [x] Task 9 implementation verification completed: 53 tests pass, typecheck/build pass, credential audit clean, independent review has no Critical findings, and `main` is synchronized with `origin/main`.
+- [ ] Optional final reproducibility check: run `npm ci` from a fresh checkout, then repeat the verification commands.
 - [x] Live smoke + cleanup passed: Appwrite, Convex, Neon Data API, Neon direct, Neon pooler, PocketBase, Supabase API, Supabase pooler, and TrailBase.
 - [x] Conservative baseline matrix passed all 9 tested modes; archived in ignored `results/baseline-matrix.json` plus per-run `result-<runId>.json` files.
 - [x] Every future run now archives immutable JSON and Markdown reports; `result.json` and `summary.md` remain latest aliases.
