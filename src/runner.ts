@@ -53,7 +53,7 @@ async function bounded<T>(fn: (signal: AbortSignal) => Promise<T>, parent: Abort
 
 async function cleanup(adapter: Adapter, runId: string, ms: number, maxRequests: number): Promise<Cleanup> {
   const controller = new AbortController();
-  const retryCommand = `npm run bench -- --provider ${adapter.name} --cleanup-run ${runId} --max-cleanup-requests ${maxRequests}`;
+  const retryCommand = `npm run bench -- --provider ${adapter.mode ?? adapter.name} --cleanup-run ${runId} --max-cleanup-requests ${maxRequests}`;
   let timer: NodeJS.Timeout;
   try {
     await Promise.race([

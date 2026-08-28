@@ -107,6 +107,14 @@ test('TrailBase cleanup preserves already encoded record IDs', async () => {
   } finally { globalThis.fetch = originalFetch; }
 });
 
+test('cleanup retry uses the selectable CLI provider mode', async () => {
+  const adapter = fakeAdapter() as any;
+  adapter.name = 'supabase';
+  adapter.mode = 'supabase-api';
+  const result = await run(adapter, { count: 1, batchSize: 1, smokeOnly: true });
+  assert.match(result.cleanup.retryCommand, /--provider supabase-api /);
+});
+
 test('setup and cleanup use explicit request costs separate from workload stages', async () => {
   const adapter = fakeAdapter() as any;
   let requests = 0;

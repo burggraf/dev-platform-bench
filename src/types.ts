@@ -16,6 +16,7 @@ export type RunBudget = {
 
 export type Adapter = {
   name: string;
+  mode?: string;
   transport: Transport;
   endpoint?: string;
   metadata?: Record<string, unknown>;
