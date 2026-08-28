@@ -1,2 +1,65 @@
-export type SafetyConfig={durationSeconds:number;concurrency:number;requestsPerSecond:number;confirmStress?:boolean;maxRequests?:number;recordsPerRequest?:number;ramps?:number[];cooldownSeconds?:number;maxRunSeconds?:number;maxRecords?:number;seedRecords?:number;warmupSeconds?:number;operations?:number;requestTimeoutSeconds?:number;seedRequests?:number};
-export function preflight(c:SafetyConfig){const finite=(n:number)=>Number.isFinite(n);if(!finite(c.durationSeconds)||c.durationSeconds<=0||!finite(c.concurrency)||c.concurrency<1||!Number.isInteger(c.concurrency)||!finite(c.requestsPerSecond)||c.requestsPerSecond<0||!finite(c.warmupSeconds??0)||(c.warmupSeconds??0)<0||!finite(c.requestTimeoutSeconds??0)||(c.requestTimeoutSeconds??0)<0||!finite(c.recordsPerRequest??1)||(c.recordsPerRequest??1)<1||!Number.isInteger(c.recordsPerRequest??1)||!finite(c.seedRecords??100)||(c.seedRecords??100)<1||!Number.isInteger(c.seedRecords??100)||!finite(c.cooldownSeconds??0)||(c.cooldownSeconds??0)<0||!finite(c.maxRequests??10000)||(c.maxRequests??10000)<1||!(c.ramps??[1]).every(x=>finite(x)&&Number.isInteger(x)&&x>=1))throw Error('finite positive inputs and nonnegative RPS required');const stages=c.ramps?.length??1,ops=c.operations??3,rps=c.requestsPerSecond||c.concurrency*10,perStage=Math.ceil(c.durationSeconds*rps),measured=perStage*stages*ops,warmup=Math.ceil((c.warmupSeconds??0)*rps),seed=c.seedRecords??100,smoke=3,requests=measured+warmup+smoke+(c.seedRequests??seed),batch=c.recordsPerRequest??1,records=seed+smoke+warmup+perStage*stages*(Math.max(0,ops-2)+batch),max=c.maxRequests??10000,seconds=(c.durationSeconds+(c.requestTimeoutSeconds??0))*stages*ops+(c.cooldownSeconds??0)*Math.max(0,stages-1)+(c.warmupSeconds??0)+((c.seedRequests??seed)+6)*(c.requestTimeoutSeconds??0),violations=requests>max||c.concurrency>20||(c.ramps??[1]).some(x=>x>20)||(c.maxRunSeconds!==undefined&&seconds>c.maxRunSeconds)||(c.maxRecords!==undefined&&records>c.maxRecords);if(violations&&!c.confirmStress)throw Error('confirmStress required for explicit stress overrides');return{requests,records,estimatedRunSeconds:seconds,max};}
+export type SafetyConfig = {
+  durationSeconds: number;
+  concurrency: number;
+  requestsPerSecond: number;
+  confirmStress?: boolean;
+  maxRequests?: number;
+  recordsPerRequest?: number;
+  ramps?: number[];
+  cooldownSeconds?: number;
+  maxRunSeconds?: number;
+  maxRecords?: number;
+  seedRecords?: number;
+  warmupSeconds?: number;
+  operations?: number;
+  requestTimeoutSeconds?: number;
+  seedRequests?: number;
+};
+
+export function preflight(c: SafetyConfig) {
+  const positive = (n: number) => Number.isFinite(n) && n > 0;
+  const nonnegative = (n: number) => Number.isFinite(n) && n >= 0;
+  const integer = (n: number) => positive(n) && Number.isInteger(n);
+  const batch = c.recordsPerRequest ?? 1;
+  const seed = c.seedRecords ?? 100;
+  const seedRequests = c.seedRequests ?? seed; // conservative for API adapters
+  const warmupSeconds = c.warmupSeconds ?? 0;
+  const cooldownSeconds = c.cooldownSeconds ?? 0;
+  const timeoutSeconds = c.requestTimeoutSeconds ?? 0;
+  const operations = c.operations ?? 3;
+  const ramps = c.ramps ?? [c.concurrency];
+  const maxRequests = c.maxRequests ?? 10_000;
+
+  if (
+    !positive(c.durationSeconds) || !integer(c.concurrency) ||
+    !nonnegative(c.requestsPerSecond) || !integer(batch) || !integer(seed) ||
+    !integer(seedRequests) || !nonnegative(warmupSeconds) ||
+    !nonnegative(cooldownSeconds) || !nonnegative(timeoutSeconds) ||
+    !integer(operations) || !positive(maxRequests) ||
+    (c.maxRecords !== undefined && !positive(c.maxRecords)) ||
+    (c.maxRunSeconds !== undefined && !positive(c.maxRunSeconds)) ||
+    !ramps.length || !ramps.every(integer)
+  ) throw new Error('finite positive inputs and nonnegative RPS required');
+
+  const rps = c.requestsPerSecond || c.concurrency * 10;
+  const requestsPerStage = Math.ceil(c.durationSeconds * rps);
+  const measuredRequests = requestsPerStage * ramps.length * operations;
+  const warmupRequests = Math.ceil(warmupSeconds * rps);
+  const smokeRequests = 3; // point read, single insert, batch attempt
+  const requests = 1 + seedRequests + smokeRequests + warmupRequests + measuredRequests;
+
+  const writeRecordsPerCycle = (operations >= 2 ? 1 : 0) + Math.max(0, operations - 2) * batch;
+  const records = seed + 1 + batch + requestsPerStage * ramps.length * writeRecordsPerCycle;
+  const estimatedRunSeconds =
+    (c.durationSeconds + timeoutSeconds) * ramps.length * operations +
+    cooldownSeconds * Math.max(0, ramps.length - 1) + warmupSeconds +
+    (1 + seedRequests + smokeRequests + 1) * timeoutSeconds; // setup, seed, smoke, cleanup
+
+  const violations =
+    requests > maxRequests || c.concurrency > 20 || ramps.some(x => x > 20) ||
+    (c.maxRunSeconds !== undefined && estimatedRunSeconds > c.maxRunSeconds) ||
+    (c.maxRecords !== undefined && records > c.maxRecords);
+  if (violations && !c.confirmStress) throw new Error('confirmStress required for explicit stress overrides');
+
+  return { requests, records, estimatedRunSeconds, max: maxRequests };
+}

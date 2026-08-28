@@ -1,1 +1,46 @@
-import {writeFile,mkdir} from 'node:fs/promises';export function redact(value:unknown):unknown{if(typeof value==='string'){try{return new URL(value).host}catch{return value.replace(/((?:Bearer|Basic)\s+|(?:password|apikey|api[_-]?key|access[_-]?token|authorization|cookie|x-api-key)[=:]\s*)[^\s,;]+/gi,'$1[redacted]')}}if(Array.isArray(value))return value.map(redact);if(value&&typeof value==='object')return Object.fromEntries(Object.entries(value).filter(([k])=>!/(key|secret|token|password|connection|string|authorization|cookie)/i.test(k)).map(([k,v])=>[k,redact(v)]));return value}export async function writeReport(result:unknown,dir='results'){await mkdir(dir,{recursive:true});const clean=redact(result) as any;await writeFile(`${dir}/result.json`,JSON.stringify(clean,null,2));const rows=(clean.results??[]).map((x:any)=>`| ${x.operation??''} | ${x.targetConcurrency??''} | ${x.recordsPerSecond??0} | ${x.requestsPerSecond??0} | ${x.p95??0} | ${x.stopReason??''} |`).join('\n'),e=clean.environment??{};await writeFile(`${dir}/summary.md`,`# Benchmark result\n\nProvider: ${clean.provider??'unknown'} (${clean.transport??'unknown'})\nEndpoint: ${clean.endpoint??'unknown'}\nRegion/tier: ${e.providerRegion??'unknown'} / ${e.providerTier??'unknown'}\nRunner/VPS: ${e.runnerLocation??'unknown'} / ${e.vpsSpecs??'unknown'}\nSchema: ${e.schema??'unknown'}\nTest date: ${e.testDate??'unknown'}\nCleanup: ${clean.cleanup?.status??'unknown'}\n\n| Operation | Concurrency | Records/s | Requests/s | P95 ms | Stop |\n|---|---:|---:|---:|---:|---|\n${rows}\n`);}
+import { mkdir, writeFile } from 'node:fs/promises';
+
+const secretKey = /^(?:api_?key|apikey|secret|token|password|authorization|cookie|connection_?string)$/i;
+const explicitUrl = /^(?:https?|postgres(?:ql)?):\/\//i;
+
+export function redact(value: unknown): unknown {
+  if (typeof value === 'string') {
+    if (explicitUrl.test(value)) {
+      try { return new URL(value).host; } catch { return '[redacted-url]'; }
+    }
+    return value.replace(
+      /((?:Bearer|Basic)\s+|(?:password|apikey|api[_-]?key|access[_-]?token|authorization|cookie|x-api-key)[=:]\s*)[^\s,;]+/gi,
+      '$1[redacted]',
+    );
+  }
+  if (Array.isArray(value)) return value.map(redact);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(Object.entries(value).filter(([key]) => !secretKey.test(key)).map(([key, item]) => [key, redact(item)]));
+  }
+  return value;
+}
+
+export async function writeReport(result: unknown, dir = 'results') {
+  await mkdir(dir, { recursive: true });
+  const clean = redact(result) as any;
+  await writeFile(`${dir}/result.json`, JSON.stringify(clean, null, 2));
+  const rows = (clean.results ?? []).map((item: any) =>
+    `| ${item.operation ?? ''} | ${item.targetConcurrency ?? ''} | ${item.recordsPerSecond ?? 0} | ${item.requestsPerSecond ?? 0} | ${item.p95 ?? 0} | ${item.stopReason ?? ''} |`,
+  ).join('\n');
+  const environment = clean.environment ?? {};
+  await writeFile(`${dir}/summary.md`, `# Benchmark result
+
+Provider: ${clean.provider ?? 'unknown'} (${clean.transport ?? 'unknown'})
+Endpoint: ${clean.endpoint ?? 'unknown'}
+Access path: ${clean.adapterConfig?.accessPath ?? clean.transport ?? 'unknown'}; max connections: ${clean.adapterConfig?.maxConnections ?? 'unknown'}
+Region/tier: ${environment.providerRegion ?? 'unknown'} / ${environment.providerTier ?? 'unknown'}
+Runner/VPS: ${environment.runnerLocation ?? 'unknown'} / ${environment.vpsSpecs ?? 'unknown'}
+Schema: ${environment.schema ?? 'unknown'}
+Test date: ${environment.testDate ?? 'unknown'}
+Cleanup: ${clean.cleanup?.status ?? 'unknown'}
+
+| Operation | Concurrency | Records/s | Requests/s | P95 ms | Stop |
+|---|---:|---:|---:|---:|---|
+${rows}
+`);
+}
