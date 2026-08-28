@@ -1,5 +1,7 @@
 # PocketBase
 
-Required `POCKETBASE_URL`; optional `POCKETBASE_COLLECTION` defaults to `bench_records`. PocketBase record IDs must be 15 characters, so the adapter stores the logical deterministic ID in indexed `benchId` and sends a 15-character physical ID. Create fields `benchId`, `runId`, `sequence`, `createdAt`, `payload`, index `benchId` and `runId`. Records API has no generic bulk-create endpoint; batch-write is explicit `not-supported`.
+Set `POCKETBASE_URL`, `POCKETBASE_BEARER_TOKEN`, and optionally `POCKETBASE_COLLECTION`. Obtain the token through the supplied test account's normal PocketBase auth login (`POST /api/collections/users/auth-with-password`); place only the returned token in the ignored environment, never in shell history, reports, or Git. Setup rejects missing auth.
 
-Cleanup repeatedly fetches page 1 with the run filter and deletes returned IDs, preventing page-shift skips. Smoke: `npm run bench -- --provider pocketbase --count 1 --duration 1 --ramps 1`. Official: [Records API](https://pocketbase.io/docs/api-records/), accessed 2026-08-28. SQLite-file direct mode is out of scope.
+Record IDs are 15-character PocketBase physical IDs derived deterministically from the logical UUID; the full logical ID is retained in indexed `benchId`. Configure fields `benchId`, `runId`, `sequence`, `createdAt`, and `payload`, with indexes on `benchId` and `runId`. The Records API has no generic bulk-create endpoint, so batch-write is `not-supported`. Cleanup repeatedly fetches page 1 with a safely encoded run filter and deletes only returned IDs.
+
+Smoke: `npm run bench -- --provider pocketbase --smoke-only`. Official: [auth](https://pocketbase.io/docs/api-authentication/), [Records API](https://pocketbase.io/docs/api-records/), accessed 2026-08-28.
