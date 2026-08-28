@@ -7,6 +7,17 @@ import { redact } from '../src/report.js';
 import { run } from '../src/runner.js';
 import { preflight } from '../src/safety.js';
 
+test('smoke-only preflight excludes warmup and measured stages', () => {
+  const result = preflight({
+    durationSeconds: 1, concurrency: 1, requestsPerSecond: 20, ramps: [1, 2],
+    seedRecords: 1, seedRequests: 1, setupRequests: 2, recordsPerRequest: 1,
+    warmupSeconds: 10, requestTimeoutSeconds: 10, smokeOnly: true, maxRunSeconds: 120,
+  });
+  assert.equal(result.requests, 6);
+  assert.equal(result.records, 3);
+  assert.equal(result.estimatedRunSeconds, 70);
+});
+
 test('preflight counts setup, per-record seed, smoke batch, and measured writes', () => {
   const result = preflight({
     durationSeconds: 1,

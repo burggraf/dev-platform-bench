@@ -16,6 +16,7 @@ export type SafetyConfig = {
   seedRequests?: number;
   setupRequests?: number;
   maxCleanupRequests?: number;
+  smokeOnly?: boolean;
 };
 
 export function preflight(c: SafetyConfig) {
@@ -47,17 +48,17 @@ export function preflight(c: SafetyConfig) {
 
   const rps = c.requestsPerSecond || c.concurrency * 10;
   const requestsPerStage = Math.ceil(c.durationSeconds * rps);
-  const measuredRequests = requestsPerStage * ramps.length * operations;
-  const warmupRequests = Math.ceil(warmupSeconds * rps);
+  const measuredRequests = c.smokeOnly ? 0 : requestsPerStage * ramps.length * operations;
+  const warmupRequests = c.smokeOnly ? 0 : Math.ceil(warmupSeconds * rps);
   const smokeRequests = 3; // point read, single insert, batch attempt
   const requests = setupRequests + seedRequests + smokeRequests + warmupRequests + measuredRequests;
 
   const writeRecordsPerCycle = (operations >= 2 ? 1 : 0) + Math.max(0, operations - 2) * batch;
-  const records = seed + 1 + batch + requestsPerStage * ramps.length * writeRecordsPerCycle;
-  const estimatedRunSeconds =
+  const records = seed + 1 + batch + (c.smokeOnly ? 0 : requestsPerStage * ramps.length * writeRecordsPerCycle);
+  const lifecycleSeconds = (setupRequests + seedRequests + smokeRequests + 1) * timeoutSeconds; // setup, seed, smoke, cleanup
+  const estimatedRunSeconds = c.smokeOnly ? lifecycleSeconds :
     (c.durationSeconds + timeoutSeconds) * ramps.length * operations +
-    cooldownSeconds * Math.max(0, ramps.length - 1) + warmupSeconds +
-    (setupRequests + seedRequests + smokeRequests + 1) * timeoutSeconds; // setup, seed, smoke, cleanup
+    cooldownSeconds * Math.max(0, ramps.length - 1) + warmupSeconds + lifecycleSeconds;
 
   const violations =
     requests > maxRequests || c.concurrency > 20 || ramps.some(x => x > 20) ||

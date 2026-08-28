@@ -70,6 +70,7 @@ const budget = preflight({
   seedRequests: perRecordSeed ? count : 1,
   setupRequests: provider.endsWith('-direct') || provider.endsWith('-pooler') ? 2 : 1,
   maxCleanupRequests,
+  smokeOnly: Boolean(values['smoke-only']),
   confirmStress: confirm,
 });
 if (values['dry-run']) {
