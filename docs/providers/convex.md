@@ -1,5 +1,21 @@
 # Convex
 
-Required variable: `CONVEX_URL` (the `.convex.cloud` deployment URL). Deploy the included `convex/schema.ts` and `convex/bench.ts` functions (`npx convex dev` for a development deployment, then `npx convex deploy` for a named deployment). The adapter calls POST `/api/query` and `/api/mutation` with `{path,args,format}`; set optional `CONVEX_READ_PATH`, `CONVEX_INSERT_PATH`, `CONVEX_BATCH_PATH`, and `CONVEX_CLEANUP_PATH` to the deployed function paths. Actions should validate the logical record and use a transaction for batch semantics. Convex has no direct PostgreSQL mode.
+Required runtime variable: `CONVEX_URL`, using the target `.convex.cloud` deployment URL. The included root `convex.json`, `convex/schema.ts`, and `convex/bench.ts` define the benchmark table plus indexed read, single-write, batch-write, and run-scoped cleanup functions.
 
-Smoke: `npm run bench -- --provider convex --smoke-only`. Confirm the deployed action's auth and cleanup behavior before any ramp. Official docs: [writing data](https://docs.convex.dev/database/writing-data), [built-in `/api/query` and `/api/mutation` RPC](https://docs.convex.dev/http-actions), [limits](https://docs.convex.dev/production/state/limits). Accessed 2026-08-28; limits remain provider-plan documentation, not assumptions embedded in this suite.
+Deploy to the test development deployment with a scoped development deploy key:
+
+```sh
+# Put CONVEX_DEPLOY_KEY in ignored .env; never pass it on the command line.
+npx convex dev --once
+```
+
+Create a scoped key with `npx convex deployment token create dev-platform-bench --deployment <deployment> --save-env .env` or through the Convex dashboard. Production deployments use `npx convex deploy`; do not deploy this benchmark to an unrelated production project.
+
+The adapter calls built-in POST `/api/query` and `/api/mutation` with `{path,args,format}`. Optional function-path variables default to `bench:read`, `bench:insert`, `bench:batch`, and `bench:cleanup`.
+
+```sh
+npm run bench -- --provider convex --dry-run
+npm run bench -- --provider convex --smoke-only --count 1 --batch-size 1
+```
+
+Official references, accessed 2026-08-28: [CLI](https://docs.convex.dev/cli), [deploy keys](https://docs.convex.dev/cli/deploy-key-types), [writing data](https://docs.convex.dev/database/writing-data), and [limits](https://docs.convex.dev/production/state/limits). Convex has no direct PostgreSQL mode.
