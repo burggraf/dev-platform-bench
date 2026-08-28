@@ -8,6 +8,18 @@
 
 **Tech Stack:** Node.js 22+, TypeScript, Node test runner, built-in `fetch`, official provider clients only where a wire API is impractical, and `pg` for PostgreSQL connections.
 
+## Execution status — 2026-08-28
+
+- [x] Tasks 1–8 implemented and pushed to `main`.
+- [x] Task 9 completed: 53 tests pass, typecheck/build pass, credential audit clean, independent review has no Critical findings, and `main` is synchronized with `origin/main`.
+- [x] Live smoke + cleanup passed: Appwrite, Convex, Neon Data API, Neon direct, Neon pooler, PocketBase, Supabase API, Supabase pooler, and TrailBase.
+- [x] Conservative baseline matrix passed all 9 tested modes; archived in ignored `results/baseline-matrix.json` plus per-run `result-<runId>.json` files.
+- [x] Every future run now archives immutable JSON and Markdown reports; `result.json` and `summary.md` remain latest aliases.
+- [ ] Supabase direct remains excluded because the direct database hostname is unreachable; use Supavisor instead.
+- [ ] Throughput expansion remains optional and requires a deliberate run decision; no stress overrides have been used.
+
+**Restart point:** read this status block, inspect `results/baseline-matrix.json`, then choose either a longer controlled baseline or an explicitly confirmed higher-concurrency run. Do not rerun the completed setup/smoke work unless credentials or provider resources change.
+
 ---
 
 ### Task 1: Secure repository bootstrap
