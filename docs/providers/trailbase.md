@@ -1,18 +1,31 @@
 # TrailBase
 
-Set `TRAILBASE_URL`, `TRAILBASE_BEARER_TOKEN`, and `TRAILBASE_API_NAME`. Obtain a bearer token through the deployment's test-account login and keep it only in ignored environment configuration. Setup rejects missing authentication.
+Set `TRAILBASE_URL`, `TRAILBASE_BEARER_TOKEN`, and `TRAILBASE_API_NAME` (default `bench_records`). Obtain the bearer token from `POST /api/auth/v1/login` with `response_type: "token"` and keep credentials/tokens only in ignored local configuration.
 
-Create a strict benchmark table/API with UUID primary key `id`, plus `runId`, `sequence`, `createdAt`, and `payload`; index `runId`. The payload stores the canonical UUID. TrailBase record URLs encode the UUID bytes as unpadded URL-safe base64, so point reads and deletes use:
+Create a strict `bench_records` table with:
+
+- `id BLOB PRIMARY KEY NOT NULL CHECK(is_uuid(id))`
+- `runId BLOB NOT NULL CHECK(is_uuid(runId))`
+- `sequence INTEGER NOT NULL`
+- `createdAt TEXT NOT NULL`
+- `payload TEXT NOT NULL`
+- index `idx_bench_records_runId` on `runId`
+
+Expose it as the `bench_records` Record API with authenticated `CREATE`, `READ`, `UPDATE`, `DELETE`, and `SCHEMA` permissions. The benchmark does not require world access.
+
+This deployed TrailBase version returns and accepts UUID BLOBs as **padded** URL-safe base64. Point reads, filters, and deletes therefore use the 24-character representation (22 data characters plus `==`), with padding percent-encoded in URL paths and queries:
 
 ```text
-/api/records/v1/{api_name}/{base64url_uuid}
+/api/records/v1/{api_name}/{base64url_uuid}%3D%3D
 ```
 
-Batch writes remain explicitly `not-supported` until this deployment's transaction endpoint has been separately verified. Cleanup repeatedly fetches offset zero using the exact encoded `filter[runId][$eq]` predicate, then deletes only IDs returned by that query.
+Batch writes remain explicitly `not-supported` until the deployment's transaction endpoint has been separately verified. Cleanup converts `runId` to the same padded representation, repeatedly fetches offset zero with `filter[runId][$eq]`, and deletes only IDs returned by that query.
 
 ```sh
 npm run bench -- --provider trailbase --dry-run
-npm run bench -- --provider trailbase --smoke-only
+npm run bench -- --provider trailbase --smoke-only --count 1 --batch-size 1
 ```
 
-Official references, accessed 2026-08-28: [Record APIs](https://trailbase.io/documentation/apis_record/), [record transactions operation](https://trailbase.io/api/operations/record_transactions_handler/), and [type safety](https://trailbase.io/documentation/type_safety/). SQLite-file direct mode is outside v1 because it is not a comparable local-client network path.
+The installed `trail mcp` server can target a remote instance with serialized admin tokens via its `TOKENS` environment variable. Keep that token JSON in local MCP configuration and reload Pi after changing the server definition.
+
+Official references, accessed 2026-08-28: [Record APIs](https://trailbase.io/documentation/apis_record/), [authentication](https://trailbase.io/documentation/auth/), and [record transactions](https://trailbase.io/api/operations/record_transactions_handler/). SQLite-file direct mode is outside v1 because it is not a comparable local-client network path.

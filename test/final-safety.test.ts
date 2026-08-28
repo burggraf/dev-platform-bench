@@ -119,12 +119,12 @@ test('TrailBase cleanup preserves already encoded record IDs', async () => {
     const url = String(input);
     paths.push(new URL(url).pathname);
     return paths.length === 1
-      ? new Response(JSON.stringify({ records: [{ id: 'Ej5FZ-ibQtOkVkJmFBdAAA' }] }), { status: 200, headers: { 'content-type': 'application/json' } })
+      ? new Response(JSON.stringify({ records: [{ id: 'Ej5FZ-ibQtOkVkJmFBdAAA==' }] }), { status: 200, headers: { 'content-type': 'application/json' } })
       : new Response(null, { status: 204 });
   };
   try {
     await trailbaseAdapter('https://trail.example').cleanup('123e4567-e89b-42d3-a456-426614174000');
-    assert.equal(paths[1], '/api/records/v1/bench_records/Ej5FZ-ibQtOkVkJmFBdAAA');
+    assert.equal(paths[1], '/api/records/v1/bench_records/Ej5FZ-ibQtOkVkJmFBdAAA%3D%3D');
   } finally { globalThis.fetch = originalFetch; }
 });
 

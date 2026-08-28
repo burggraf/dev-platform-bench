@@ -7,6 +7,7 @@
 */*.data.api.txt
 */*.prompt.txt
 */*.summary.txt
+traildepot/
 
 # Node/build output
 node_modules/
