@@ -1,0 +1,2 @@
+import type {Adapter,LogicalRecord} from '../types.js';
+export function fakeAdapter():Adapter { const db=new Map<string,LogicalRecord>(); return {name:'fake',transport:'api',setup:async()=>{},seed:async rs=>rs.forEach(r=>db.set(r.id,r)),read:async id=>{if(!db.has(id))throw Error('not found')},insert:async r=>{db.set(r.id,r)},batch:async rs=>rs.forEach(r=>db.set(r.id,r)),cleanup:async run=>{for(const [id,r] of db)if(r.runId===run)db.delete(id)}}; }
