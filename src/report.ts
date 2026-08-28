@@ -1,14 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 
 const secretKey = /^(?:api_?key|apikey|secret|token|password|authorization|cookie|connection_?string)$/i;
-const explicitUrl = /^(?:https?|postgres(?:ql)?):\/\//i;
+const credentialUrl = /(?:https?|postgres(?:ql)?):\/\/[^\s,;]+/gi;
 
 export function redact(value: unknown): unknown {
   if (typeof value === 'string') {
-    if (explicitUrl.test(value)) {
-      try { return new URL(value).host; } catch { return '[redacted-url]'; }
-    }
-    return value.replace(
+    return value.replace(credentialUrl, match => {
+      try { return new URL(match).host; } catch { return '[redacted-url]'; }
+    }).replace(
       /((?:Bearer|Basic)\s+|(?:password|apikey|api[_-]?key|access[_-]?token|authorization|cookie|x-api-key)[=:]\s*)[^\s,;]+/gi,
       '$1[redacted]',
     );

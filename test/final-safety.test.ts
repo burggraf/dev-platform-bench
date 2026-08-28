@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { fakeAdapter } from '../src/adapters/fake.js';
 import { postgresAdapter, pgAdapter } from '../src/adapters/postgres.js';
+import { trailbaseAdapter } from '../src/adapters/trailbase.js';
 import { redact } from '../src/report.js';
 import { run } from '../src/runner.js';
 import { preflight } from '../src/safety.js';
@@ -71,8 +72,42 @@ test('postgres setup creates cleanup index and pool metadata is explicit', async
   assert.deepEqual(pooled.metadata, { accessPath: 'pool', maxConnections: 7 });
 });
 
-test('redaction preserves ordinary schema and error text', () => {
+test('redaction preserves ordinary text and strips embedded credential URLs', () => {
   assert.equal(redact('logical:id/runId; indexes:id,runId'), 'logical:id/runId; indexes:id,runId');
   assert.equal(redact('postgres: missing database URL'), 'postgres: missing database URL');
   assert.equal(redact('postgresql://user:secret@db.example/test'), 'db.example');
+  assert.equal(redact('dial failed: postgresql://user:secret@db.example/db'), 'dial failed: db.example');
+  assert.equal(redact('URL=https://user:secret@example.test/x'), 'URL=example.test');
+});
+
+test('TrailBase cleanup preserves already encoded record IDs', async () => {
+  const originalFetch = globalThis.fetch;
+  const paths: string[] = [];
+  globalThis.fetch = async input => {
+    const url = String(input);
+    paths.push(new URL(url).pathname);
+    return paths.length === 1
+      ? new Response(JSON.stringify({ records: [{ id: 'Ej5FZ-ibQtOkVkJmFBdAAA' }] }), { status: 200, headers: { 'content-type': 'application/json' } })
+      : new Response(null, { status: 204 });
+  };
+  try {
+    await trailbaseAdapter('https://trail.example').cleanup('123e4567-e89b-42d3-a456-426614174000');
+    assert.equal(paths[1], '/api/records/v1/bench_records/Ej5FZ-ibQtOkVkJmFBdAAA');
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('setup and cleanup use explicit request costs separate from workload stages', async () => {
+  const adapter = fakeAdapter() as any;
+  let requests = 0;
+  let cleanupLimit: number | undefined;
+  adapter.setupRequestCost = 2;
+  adapter.setup = async () => { requests += 2; };
+  for (const key of ['seed', 'read', 'insert', 'batch'] as const) {
+    const original = adapter[key].bind(adapter);
+    adapter[key] = async (...args: any[]) => { requests++; return original(...args); };
+  }
+  adapter.cleanup = async (_run: string, _signal?: AbortSignal, maxRequests?: number) => { cleanupLimit = maxRequests; };
+  await run(adapter, { count: 1, batchSize: 1, durationSeconds: .02, requestsPerSecond: 1000, maxRequests: 6, maxRecords: 10 });
+  assert.ok(requests <= 6, `requests=${requests}`);
+  assert.equal(cleanupLimit, 1000);
 });

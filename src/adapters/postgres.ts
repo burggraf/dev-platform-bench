@@ -18,6 +18,7 @@ export function postgresAdapter(query: Query, table = 'bench_records', name = 'p
   return {
     name,
     transport: 'direct',
+    setupRequestCost: 2,
     setup: async signal => {
       await query(`CREATE TABLE IF NOT EXISTS "${ident}" (id text PRIMARY KEY,run_id text NOT NULL,sequence integer NOT NULL,created_at timestamptz NOT NULL,payload text NOT NULL)`, [], signal);
       await query(`CREATE INDEX IF NOT EXISTS "${ident}_run_id_idx" ON "${ident}" (run_id)`, [], signal);
@@ -30,7 +31,9 @@ export function postgresAdapter(query: Query, table = 'bench_records', name = 'p
     },
     insert: (row, signal) => batch([row], signal),
     batch,
-    cleanup: (runId, signal) => query(`DELETE FROM "${ident}" WHERE run_id=$1`, [runId], signal).then(() => {}),
+    cleanup: (runId, signal, maxRequests = 1000) => maxRequests < 1
+      ? Promise.reject(new Error(`${name} cleanup request budget exhausted`))
+      : query(`DELETE FROM "${ident}" WHERE run_id=$1`, [runId], signal).then(() => {}),
   };
 }
 
@@ -73,8 +76,8 @@ export function pgAdapter(
     await setup(signal);
   };
   const clean = adapter.cleanup;
-  adapter.cleanup = async (runId, signal) => {
-    try { await clean(runId, signal); } finally { await pool.end(); }
+  adapter.cleanup = async (runId, signal, maxRequests) => {
+    try { await clean(runId, signal, maxRequests); } finally { await pool.end(); }
   };
   return adapter;
 }

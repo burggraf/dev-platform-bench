@@ -20,6 +20,7 @@ const { values } = parseArgs({ options: {
   ramps: { type: 'string' },
   'max-requests': { type: 'string', default: '10000' },
   'max-records': { type: 'string' },
+  'max-cleanup-requests': { type: 'string', default: '1000' },
   'confirm-stress': { type: 'boolean', default: false },
   'dry-run': { type: 'boolean', default: false },
   'smoke-only': { type: 'boolean', default: false },
@@ -47,6 +48,7 @@ const timeout = number(values['timeout-ms']);
 const ramps = String(values.ramps ?? profile.concurrency).split(',').map(Number);
 const maxRequests = number(values['max-requests']);
 const maxRecords = number(values['max-records'] ?? profile.maxRecords);
+const maxCleanupRequests = number(values['max-cleanup-requests']);
 const confirm = Boolean(values['confirm-stress']);
 if (provider !== 'fake' && rps === 0 && !confirm) throw new Error('zero requests-per-second requires --confirm-stress for live providers');
 
@@ -66,6 +68,8 @@ const budget = preflight({
   operations: 3,
   requestTimeoutSeconds: timeout / 1000,
   seedRequests: perRecordSeed ? count : 1,
+  setupRequests: provider.endsWith('-direct') || provider.endsWith('-pooler') ? 2 : 1,
+  maxCleanupRequests,
   confirmStress: confirm,
 });
 if (values['dry-run']) {
@@ -76,7 +80,7 @@ if (values['dry-run']) {
 const adapter = getAdapter(provider, { timeoutMs: timeout, maxConnections: Math.max(...ramps) });
 if (values['cleanup-run']) {
   if (!isUuid(String(values['cleanup-run']))) throw new Error('cleanup run ID must be a generated UUID');
-  await adapter.cleanup(String(values['cleanup-run']), AbortSignal.timeout(timeout));
+  await adapter.cleanup(String(values['cleanup-run']), AbortSignal.timeout(timeout), maxCleanupRequests);
   console.log('cleanup ok');
   process.exit(0);
 }
@@ -96,6 +100,7 @@ const runOptions = {
   throttleThreshold: 3,
   maxRequests,
   maxRecords,
+  maxCleanupRequests,
   smokeOnly: Boolean(values['smoke-only']),
 };
 try {

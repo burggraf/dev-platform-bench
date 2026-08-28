@@ -20,9 +20,10 @@ export type RunOptions = Partial<{
   smokeOnly: boolean;
   maxRequests: number;
   maxRecords: number;
+  maxCleanupRequests: number;
 }>;
 
-type Cleanup = { status: 'ok' | 'failed' | 'timeout'; error: string | null; retryCommand: string };
+type Cleanup = { status: 'ok' | 'failed' | 'timeout'; error: string | null; retryCommand: string; maxRequests: number };
 
 const wait = (seconds: number, signal: AbortSignal) => new Promise<void>(resolve => {
   const timer = setTimeout(resolve, seconds * 1000);
@@ -50,22 +51,23 @@ async function bounded<T>(fn: (signal: AbortSignal) => Promise<T>, parent: Abort
   }
 }
 
-async function cleanup(adapter: Adapter, runId: string, ms: number): Promise<Cleanup> {
+async function cleanup(adapter: Adapter, runId: string, ms: number, maxRequests: number): Promise<Cleanup> {
   const controller = new AbortController();
   let timer: NodeJS.Timeout;
   try {
     await Promise.race([
-      adapter.cleanup(runId, controller.signal),
+      adapter.cleanup(runId, controller.signal, maxRequests),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => { controller.abort(); reject(new Error('cleanup timeout')); }, ms);
       }),
     ]);
-    return { status: 'ok', error: null, retryCommand: `npm run bench -- --provider ${adapter.name} --cleanup-run ${runId}` };
+    return { status: 'ok', error: null, retryCommand: `npm run bench -- --provider ${adapter.name} --cleanup-run ${runId}`, maxRequests };
   } catch (error) {
     return {
       status: controller.signal.aborted ? 'timeout' : 'failed',
       error: error instanceof Error ? error.message : 'cleanup failed',
       retryCommand: `npm run bench -- --provider ${adapter.name} --cleanup-run ${runId}`,
+      maxRequests,
     };
   } finally {
     clearTimeout(timer!);
@@ -77,7 +79,7 @@ export async function run(adapter: Adapter, opts: RunOptions = {}) {
     count: 100, payloadBytes: 1024, durationSeconds: 1, concurrency: 1, batchSize: 100,
     requestsPerSecond: 0, timeoutMs: 10_000, warmupSeconds: 0, cooldownSeconds: 0,
     ramps: [1], errorThreshold: .1, throttleThreshold: 3, smokeOnly: false,
-    maxRequests: 10_000, maxRecords: 100_000, ...opts,
+    maxRequests: 10_000, maxRecords: 100_000, maxCleanupRequests: 1000, ...opts,
     signal: opts.signal ?? new AbortController().signal,
   };
   const runId = randomUUID();
@@ -95,7 +97,7 @@ export async function run(adapter: Adapter, opts: RunOptions = {}) {
   };
 
   try {
-    reserve(1);
+    reserve(adapter.setupRequestCost ?? 1);
     await bounded(signal => adapter.setup(signal), c.signal, c.timeoutMs);
 
     reserve(adapter.seedRequestCost?.(seeded.length) ?? 1, seeded.length);
@@ -152,7 +154,7 @@ export async function run(adapter: Adapter, opts: RunOptions = {}) {
     thrown = error;
   }
 
-  const cleanupResult = await cleanup(adapter, runId, Math.min(c.timeoutMs, 5000));
+  const cleanupResult = await cleanup(adapter, runId, Math.min(c.timeoutMs, 5000), c.maxCleanupRequests);
   const environment = {
     node: process.version,
     runnerLocation: process.env.RUNNER_LOCATION ?? 'unknown',
