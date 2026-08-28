@@ -66,6 +66,9 @@ export function httpAdapter(
       ? (rows, signal) => request(spec.batch!, 'POST', spec.encodeBatch?.(rows) ?? rows, signal)
       : () => unsupported('batch write'),
     cleanup: async (runId, signal, maxRequests = 1000) => {
+      if (!Number.isSafeInteger(maxRequests) || maxRequests <= 0) {
+        throw new Error(`${name} cleanup request budget must be a finite positive integer`);
+      }
       let remaining = maxRequests;
       const limitedRequest: Request = (...args) => {
         if (remaining-- <= 0) return Promise.reject(new Error(`${name} cleanup request budget exhausted`));

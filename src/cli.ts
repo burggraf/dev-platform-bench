@@ -53,6 +53,9 @@ const confirm = Boolean(values['confirm-stress']);
 const adapter = getAdapter(provider, { timeoutMs: timeout, maxConnections: Math.max(...ramps) });
 if (values['cleanup-run']) {
   if (!isUuid(String(values['cleanup-run']))) throw new Error('cleanup run ID must be a generated UUID');
+  if (!Number.isInteger(timeout) || timeout <= 0 || !Number.isInteger(maxCleanupRequests) || maxCleanupRequests <= 0) {
+    throw new Error('finite positive integer cleanup limits required');
+  }
   await adapter.cleanup(String(values['cleanup-run']), AbortSignal.timeout(timeout), maxCleanupRequests);
   console.log('cleanup ok');
   process.exit(0);

@@ -136,6 +136,18 @@ test('cleanup retry uses the selectable CLI provider mode', async () => {
   assert.match(result.cleanup.retryCommand, /--provider supabase-api /);
 });
 
+test('HTTP adapters reject invalid cleanup request budgets directly', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => { calls++; return new Response(JSON.stringify({ records: [] }), { headers: { 'content-type': 'application/json' } }); };
+  try {
+    for (const limit of [NaN, Infinity, 0, 1.5]) {
+      await assert.rejects(trailbaseAdapter('https://trail.example').cleanup('123e4567-e89b-42d3-a456-426614174000', undefined, limit), /cleanup request budget/);
+    }
+    assert.equal(calls, 0);
+  } finally { globalThis.fetch = originalFetch; }
+});
+
 test('setup and cleanup use explicit request costs separate from workload stages', async () => {
   const adapter = fakeAdapter() as any;
   let requests = 0;

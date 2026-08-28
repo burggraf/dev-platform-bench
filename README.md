@@ -15,6 +15,8 @@ The first suite measures indexed point-read throughput, individual-write through
 
 ## Quick start
 
+Requires Node.js 22.9 or newer (for native optional `.env` loading).
+
 ```sh
 npm ci
 npm test
