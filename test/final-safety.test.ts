@@ -107,7 +107,8 @@ test('setup and cleanup use explicit request costs separate from workload stages
     adapter[key] = async (...args: any[]) => { requests++; return original(...args); };
   }
   adapter.cleanup = async (_run: string, _signal?: AbortSignal, maxRequests?: number) => { cleanupLimit = maxRequests; };
-  await run(adapter, { count: 1, batchSize: 1, durationSeconds: .02, requestsPerSecond: 1000, maxRequests: 6, maxRecords: 10 });
+  const result = await run(adapter, { count: 1, batchSize: 1, durationSeconds: .02, requestsPerSecond: 1000, maxRequests: 6, maxRecords: 10, maxCleanupRequests: 2 });
   assert.ok(requests <= 6, `requests=${requests}`);
-  assert.equal(cleanupLimit, 1000);
+  assert.equal(cleanupLimit, 2);
+  assert.match(result.cleanup.retryCommand, /--max-cleanup-requests 2$/);
 });
