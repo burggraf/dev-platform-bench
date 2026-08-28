@@ -50,6 +50,13 @@ const maxRequests = number(values['max-requests']);
 const maxRecords = number(values['max-records'] ?? profile.maxRecords);
 const maxCleanupRequests = number(values['max-cleanup-requests']);
 const confirm = Boolean(values['confirm-stress']);
+const adapter = getAdapter(provider, { timeoutMs: timeout, maxConnections: Math.max(...ramps) });
+if (values['cleanup-run']) {
+  if (!isUuid(String(values['cleanup-run']))) throw new Error('cleanup run ID must be a generated UUID');
+  await adapter.cleanup(String(values['cleanup-run']), AbortSignal.timeout(timeout), maxCleanupRequests);
+  console.log('cleanup ok');
+  process.exit(0);
+}
 if (provider !== 'fake' && rps === 0 && !confirm) throw new Error('zero requests-per-second requires --confirm-stress for live providers');
 
 const perRecordSeed = ['appwrite', 'convex', 'pocketbase', 'trailbase'].includes(provider);
@@ -75,14 +82,6 @@ const budget = preflight({
 });
 if (values['dry-run']) {
   console.log(JSON.stringify({ provider, profile, budget }, null, 2));
-  process.exit(0);
-}
-
-const adapter = getAdapter(provider, { timeoutMs: timeout, maxConnections: Math.max(...ramps) });
-if (values['cleanup-run']) {
-  if (!isUuid(String(values['cleanup-run']))) throw new Error('cleanup run ID must be a generated UUID');
-  await adapter.cleanup(String(values['cleanup-run']), AbortSignal.timeout(timeout), maxCleanupRequests);
-  console.log('cleanup ok');
   process.exit(0);
 }
 
