@@ -2,7 +2,7 @@
 
 ## Workload and lifecycle
 
-Every run creates a unique run ID and deterministic 1 KiB logical records: `id`, `runId`, `sequence`, `createdAt`, and `payload`. The default seed is 100 records; measured batch requests contain 100 records. Setup, seed, smoke (point read, single insert, batch insert), optional read warmup, measured ramps, cooldown, and run-scoped cleanup are performed in that order. Cleanup is attempted even when setup or measurement fails.
+Every run creates a unique run ID and deterministic UUIDv4-compatible IDs in 1 KiB logical records: `id`, `runId`, `sequence`, `createdAt`, and `payload`. The default seed is 100 records; measured batch requests contain 100 records. Setup, seed, smoke (point read, single insert, batch insert), optional read warmup, measured ramps, cooldown only between ramps, and run-scoped cleanup are performed in that order. Cleanup uses a fresh bounded signal even when setup or measurement fails; JSON records `ok`, `failed`, or `timeout` plus a retry command.
 
 Writes receive a fresh UUID per measured request. Reads choose seeded IDs. API and direct/pooler transports are separate results. SQLite file access is not included.
 
