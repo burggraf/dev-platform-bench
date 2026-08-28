@@ -170,9 +170,10 @@ export async function run(adapter: Adapter, opts: RunOptions = {}) {
     adapterConfig: adapter.metadata, environment, settings: c, budgetRemaining: budget,
     results, cleanup: cleanupResult,
   };
-  return thrown
-    ? { ...common, error: thrown instanceof Error ? thrown.message : 'benchmark failed' }
-    : common;
+  const error = thrown
+    ? (thrown instanceof Error ? thrown.message : 'benchmark failed')
+    : cleanupResult.status === 'ok' ? undefined : `cleanup ${cleanupResult.status}: ${cleanupResult.error ?? 'unknown error'}`;
+  return error ? { ...common, error } : common;
 }
 
 export async function runWithSignals(adapter: Adapter, opts: RunOptions = {}) {

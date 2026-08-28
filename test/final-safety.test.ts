@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { appwriteAdapter } from '../src/adapters/appwrite.js';
 import { fakeAdapter } from '../src/adapters/fake.js';
 import { postgresAdapter, pgAdapter } from '../src/adapters/postgres.js';
 import { trailbaseAdapter } from '../src/adapters/trailbase.js';
@@ -89,6 +90,26 @@ test('redaction preserves ordinary text and strips embedded credential URLs', ()
   assert.equal(redact('postgresql://user:secret@db.example/test'), 'db.example');
   assert.equal(redact('dial failed: postgresql://user:secret@db.example/db'), 'dial failed: db.example');
   assert.equal(redact('URL=https://user:secret@example.test/x'), 'URL=example.test');
+});
+
+test('Appwrite cleanup sends JSON query objects', async () => {
+  const originalFetch = globalThis.fetch;
+  let query = '';
+  globalThis.fetch = async input => {
+    query = new URL(String(input)).searchParams.getAll('queries[]')[0] ?? '';
+    return new Response(JSON.stringify({ documents: [] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    await appwriteAdapter('https://appwrite.example', 'project', 'key').cleanup('123e4567-e89b-42d3-a456-426614174000');
+    assert.deepEqual(JSON.parse(query), { method: 'equal', attribute: 'runId', values: ['123e4567-e89b-42d3-a456-426614174000'] });
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test('cleanup failure makes the run fail', async () => {
+  const adapter = fakeAdapter();
+  adapter.cleanup = async () => { throw new Error('delete denied'); };
+  const result = await run(adapter, { count: 1, batchSize: 1, smokeOnly: true });
+  assert.match(String((result as { error?: string }).error), /cleanup.*delete denied/i);
 });
 
 test('TrailBase cleanup preserves already encoded record IDs', async () => {
